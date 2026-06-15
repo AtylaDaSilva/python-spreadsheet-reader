@@ -16,7 +16,7 @@ class XLSXReader:
             if isinstance(workbook_path, str)
             else workbook_path
         )
-        self._sheet_data: dict[int, dict] = {}
+        self._sheet_data: dict[int, dict] = {}  # Local cache
 
     # * ---------------------------------------------------------------------------
     # *                               Public API
@@ -27,13 +27,17 @@ class XLSXReader:
             read_only: bool = True,
             cell_values_only: bool = False,
             return_cell_coords: bool = True,
-            preserve_formulas: bool = True
+            preserve_formulas: bool = True,
+            read_locked: bool = False
     ) -> dict[int, dict]:
 
+        # Validations
         if not self.workbook_path.exists():
             raise FileNotFoundError(
                 f'Spreadsheet not found: "{self.workbook_path}"'.replace("\\", "/")  # Formatar \\ no caminho do arquivo
             )
+        elif not read_locked and self.is_spreadsheet_locked():
+            raise SpreadsheetIsLockedException(f'Cannot read locked spreadsheet: "{self.workbook_path}"')
 
         match self.workbook_path.suffix.lower():
             case ".xlsx":
@@ -110,10 +114,8 @@ class XLSXReader:
         FileNotFoundError
             If filepath does not exist.
         """
-        raise NotImplementedError
-
-        if not self.caminho_planilha.exists():
-            raise FileNotFoundError(f"Não foi possível encontrar a planilha: {self.caminho_planilha}")
+        if not self.workbook_path.exists():
+            raise FileNotFoundError(f'Could not find spreadsheet: "{self.workbook_path}"')
 
         return self._is_xlsx_locked() or self._is_ods_locked()
 
@@ -155,9 +157,8 @@ class XLSXReader:
         Excel creates a temporary lock file prefixed with "~$" when a workbook
         is open. Its presence indicates the file is currently in use.
         """
-        raise NotImplementedError
-        return bool(re.search(r"~\$" + re.escape(self.caminho_planilha.name), " ".join(
-            f.name for f in self.caminho_planilha.parent.iterdir()
+        return bool(re.search(r"~\$" + re.escape(self.workbook_path.name), " ".join(
+            f.name for f in self.workbook_path.parent.iterdir()
         )))
 
     def _is_ods_locked(self) -> bool:
@@ -168,7 +169,6 @@ class XLSXReader:
         LibreOffice creates a lock file with the pattern .~lock.<filename># when
         a document is open. Its presence indicates the file is currently in use.
         """
-        raise NotImplementedError
-        return bool(re.search(r"\.~lock\." + re.escape(self.caminho_planilha.name) + r"#", " ".join(
-            f.name for f in self.caminho_planilha.parent.iterdir()
+        return bool(re.search(r"\.~lock\." + re.escape(self.workbook_path.name) + r"#", " ".join(
+            f.name for f in self.workbook_path.parent.iterdir()
         )))
