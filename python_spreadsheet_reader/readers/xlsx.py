@@ -1,4 +1,4 @@
-from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException
+from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException, EmptyCellException
 import openpyxl
 from openpyxl.styles import Alignment
 from openpyxl.cell.cell import Cell, MergedCell
@@ -16,7 +16,7 @@ class XLSXReader:
             if isinstance(workbook_path, str)
             else workbook_path
         )
-        self._sheet_data: dict[int, tuple] = {}
+        self._sheet_data: dict[int, dict] = {}
 
     # * ---------------------------------------------------------------------------
     # *                               Public API
@@ -26,7 +26,8 @@ class XLSXReader:
             self, sheet_name: str | None = None,
             read_only: bool = True,
             cell_values_only: bool = False,
-            return_cell_coords: bool = True
+            return_cell_coords: bool = True,
+            preserve_formulas: bool = True
     ) -> dict[int, dict]:
 
         if not self.workbook_path.exists():
@@ -36,7 +37,12 @@ class XLSXReader:
 
         match self.workbook_path.suffix.lower():
             case ".xlsx":
-                wb = openpyxl.load_workbook(self.workbook_path, read_only=read_only)
+                # Iterate through rows/cols to get cell values
+                wb = openpyxl.load_workbook(
+                    self.workbook_path,
+                    read_only=read_only,
+                    data_only=(not preserve_formulas)
+                )
                 if sheet_name:
                     ws = wb[sheet_name]
                 else:
@@ -45,9 +51,13 @@ class XLSXReader:
                 for i, row in enumerate(ws.iter_rows()):
                     r = {}
                     for cell in row:
+                        if isinstance(cell, openpyxl.cell.read_only.EmptyCell):
+                            continue
                         r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
-                    rows[i + 1] = r
+                    if len(r) > 0:  # Ignore empty rows
+                        rows[i + 1] = r
                 self._sheet_data = rows
+                wb.close()
                 return self._sheet_data
             case _:
                 raise ValueError(f'Unsupported file type: "{self.workbook_path.suffix}".')
