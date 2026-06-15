@@ -1,4 +1,4 @@
-from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException, EmptyCellException
+from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException
 import openpyxl
 from openpyxl.styles import Alignment
 from openpyxl.cell.cell import Cell, MergedCell
@@ -37,7 +37,7 @@ class XLSXReader:
 
         match self.workbook_path.suffix.lower():
             case ".xlsx":
-                # Iterate through rows/cols to get cell values
+                # Open active workbook (or specific, if provided)
                 wb = openpyxl.load_workbook(
                     self.workbook_path,
                     read_only=read_only,
@@ -47,11 +47,13 @@ class XLSXReader:
                     ws = wb[sheet_name]
                 else:
                     ws = wb.active
+
+                # Iterate through rows/cols to get cell values
                 rows = {}
                 for i, row in enumerate(ws.iter_rows()):
                     r = {}
                     for cell in row:
-                        if isinstance(cell, openpyxl.cell.read_only.EmptyCell):
+                        if isinstance(cell, openpyxl.cell.read_only.EmptyCell):  # Ignore empty cells
                             continue
                         r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
                     if len(r) > 0:  # Ignore empty rows
