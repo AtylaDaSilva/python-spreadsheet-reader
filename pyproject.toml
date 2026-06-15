@@ -1,0 +1,19 @@
+[project]
+name = "python-spreadsheet-reader"
+version = "0.1.0"
+description = "A collection of classes for working with spreadsheet files, made with Python 3.14+"
+authors = [
+    {name = "AtylaDaSilva",email = "atylamendes97@gmail.com"}
+]
+readme = "README.md"
+requires-python = ">=3.14,<4"
+dependencies = [
+    "openpyxl (>=3.1.5,<4.0.0)",
+    "pillow (>=12.2.0,<13.0.0)",
+    "ipykernel (>=7.3.0,<8.0.0)"
+]
+
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
