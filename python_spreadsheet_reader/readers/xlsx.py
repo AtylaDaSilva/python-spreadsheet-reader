@@ -30,7 +30,45 @@ class XLSXReader:
             preserve_formulas: bool = True,
             read_locked: bool = False
     ) -> dict[int, dict]:
+        """
+        Returns the data from the spreadsheet located at *self.workbook_path*.
+        Args:
+            sheet_name:
+                Name of the sheet to read data from. If not specified, returns the data from the active sheet.
+            read_only:
+                Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to True.
+            cell_values_only:
+                If True, returns cell values (str, int, datetime, etc.) instead of Cell objects. Defaults to False.
+            return_cell_coords:
+                If True, returns cell coordinates (A1, B2, C3, ect.) instead of column numbers.
+                Does not affect row numbers. Defaults to True.
+            preserve_formulas:
+                If True, returns cell formulae instead of cached values. Defaults to True.
+            read_locked:
+                If True, allows the reading of locked (currently opened) spreadsheets. Defaults to False.
 
+        Returns: A dict of sheet rows, each key representing the row number (1-based) and each value a nested dict.
+        The nested dicts represents cells, with cell coordinates (or column numbers) as keys and cell values (or objects) as values.
+
+        Examples:
+            >>>reader = XLSXReader(workbook_path="path/to/workbook.xlsx")
+            >>>sheet_data = reader.read_sheet("Sheet2", cell_values_only=True)
+
+            >>>print(sheet_name)
+
+            # Outputs
+
+            {
+                1: {"A1", "ID", "A2": "Title", "A3": "Genre"},
+
+                2: {"B1", 123, "B2": "Alien", "A3": "Science Fiction, Horror"},
+
+                2: {"C1", 124, "C2": "Predator", "A3": "Science Fiction, Action"},
+
+                ...
+            }
+
+        """
         # Validations
         if not self.workbook_path.exists():
             raise FileNotFoundError(
