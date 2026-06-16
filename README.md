@@ -1,175 +1,141 @@
-# Leitor Planilha Python
+# python-spreadsheet-reader
 
-Biblioteca utilitária em Python para ler, modificar e salvar planilhas **Excel (.xlsx)**. O núcleo do projeto é a classe `LeitorXLSX`, que encapsula o [openpyxl](https://openpyxl.readthedocs.io/) e oferece leitura linha a linha, acesso a células, inserção de imagens, detecção de arquivo bloqueado (Excel ou LibreOffice) e formatação básica via `EstilizadorDeCelula`.
+A Python library for reading, editing, and saving **Excel (.xlsx)** workbooks. It wraps [openpyxl](https://openpyxl.readthedocs.io/) with a higher-level API for row-by-row reading, cell access, lock detection, and workbook persistence.
 
-## Requisitos
+## Requirements
 
-- Python 3.10+ (o código usa `match`/`case` e união de tipos com `|`)
-- Dependências listadas em `requirements.txt`:
-  - `openpyxl` — leitura/escrita de `.xlsx`
-  - `Pillow` — suporte a imagens no openpyxl
+- Python **3.14+**
+- [Poetry](https://python-poetry.org/) (recommended) or pip
 
-## Como rodar localmente
+## Installation
 
-### 1. Clonar o repositório e entrar na pasta
+### With Poetry
 
 ```bash
-cd leitor-planilha-python
+git clone <repository-url>
+cd python-spreadsheet-reader
+poetry install
 ```
 
-### 2. Criar ambiente virtual (recomendado)
+### With pip
 
 ```bash
-python -m venv .venv
+pip install .
 ```
 
-**Windows (PowerShell):**
-
-```powershell
-.\.venv\Scripts\Activate.ps1
-```
-
-**Linux/macOS:**
-
-```bash
-source .venv/bin/activate
-```
-
-### 3. Instalar dependências
-
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Usar no seu código
-
-O módulo principal está em `main.py`. Importe as classes e use conforme o exemplo:
+## Quick start
 
 ```python
-from main import LeitorXLSX, EstilizadorDeCelula
+from python_spreadsheet_reader.readers.xlsx import XLSXReader
 
-leitor = LeitorXLSX("caminho/para/planilha.xlsx")
+reader = XLSXReader("path/to/workbook.xlsx")
 
-# Ler todas as linhas da planilha ativa
-dados = leitor.ler_excel()
-# dados é dict[int, tuple]: chave = número da linha (1-based), valor = tupla de valores da linha
+# Read all rows from the active sheet (values only, keyed by cell coordinates)
+sheet_data = reader.read_sheet(cell_values_only=True)
 
-valor = leitor.get_valor_celula(linha=1, coluna=1)
-leitor.set_valor_celula(linha=2, coluna=1, valor="Novo texto")
+# Read a specific sheet
+sheet_data = reader.read_sheet("Sheet2", cell_values_only=True)
 
-celula = leitor.get_celula(linha=1, coluna=1)
-EstilizadorDeCelula(celula).alinhar("center", "center", quebrar_texo=True)
+# Access and modify cells
+reader.load_workbook()
+reader.set_cell_value(value="Hello", coords="A1")
+reader.set_cell_value(value=42, row=2, col=1)
 
-leitor.adicionar_imagem("logo.png", celula="A1", altura=50, largura=100)
-leitor.salvar_planilha()  # salva no caminho original
-# leitor.salvar_planilha("saida/copia.xlsx")  # salva em outro caminho
+# Save changes
+reader.save_spreadsheet()                          # overwrite original
+reader.save_spreadsheet("output/copy.xlsx")      # save to a new path
 
-leitor.fechar_planilha()
+reader.close_workbook()
 ```
 
-> **Nota:** Feche a planilha no Excel/LibreOffice antes de abrir com este leitor. Se o arquivo estiver em uso, `SpreadsheetIsLockedException` será lançada na abertura.
+> **Note:** Close the workbook in Excel or LibreOffice before opening it with this library. If the file is in use, `SpreadsheetIsLockedException` is raised unless you pass `read_locked=True` to `load_workbook()` or `read_sheet()`.
 
----
+## API overview
 
-## Detalhamento dos objetos
+### `XLSXReader`
 
-### Classes
+Entry point for working with a `.xlsx` file. Holds the workbook in memory and optionally caches the result of `read_sheet()`.
 
-#### `LeitorXLSX`
+| Member | Description |
+|--------|-------------|
+| `workbook_path` | `Path` to the workbook passed to the constructor. |
+| `_sheet_data` | Cached row data from the last `read_sheet()` call when `close_workbook=False`. |
+| `_workbook` | Loaded `openpyxl.Workbook`, or `None` if closed. |
 
-Ponto de entrada para trabalhar com um arquivo `.xlsx`. Mantém o workbook em memória (`openpyxl.Workbook`) e cache dos dados lidos em `_sheet_data`.
-
-| Membro | Descrição |
-|--------|-----------|
-| `caminho_planilha` | `Path` do arquivo informado no construtor. |
-| `_sheet_data` | `dict[int, tuple]` com o resultado da última leitura via `ler_excel()`. |
-| `_workbook` | Instância do workbook openpyxl ou `None` se fechado. |
-
-**Construtor**
+#### Constructor
 
 ```python
-LeitorXLSX(caminho_planilha: str | Path, *args, **kwargs)
+XLSXReader(workbook_path: str | Path)
 ```
 
-- `caminho_planilha`: caminho para o arquivo `.xlsx`.
-- `*args`, `**kwargs`: repassados para `openpyxl.load_workbook()` (ex.: `read_only=True`, `data_only=True`).
-- Na inicialização, tenta abrir o workbook; se existir arquivo de lock do Excel/LibreOffice, levanta `SpreadsheetIsLockedException`.
+#### Public methods
 
-**API pública**
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `load_workbook(...)` | `openpyxl.Workbook` | Opens the workbook with configurable read-only, formula, VBA, link, and rich-text options. |
+| `close_workbook()` | `None` | Closes the workbook and clears the sheet data cache. |
+| `read_sheet(...)` | `dict[int, dict]` | Reads rows from the active or named sheet. Each key is a 1-based row number; each value is a dict of cells keyed by coordinate (e.g. `"A1"`) or column number. |
+| `get_cell(coords=..., row=..., col=..., sheet_name=...)` | `Cell \| MergedCell` | Returns a cell by Excel coordinate or 1-based row/column. |
+| `set_cell_value(value, coords=..., row=..., col=..., sheet_name=...)` | `Cell \| MergedCell` | Sets a cell value and returns the updated cell. |
+| `save_spreadsheet(workbook_path=None, close_workbook=True)` | `Path` | Saves the workbook. Creates parent directories if needed. |
+| `is_spreadsheet_locked()` | `bool` | Checks for Excel (`~$filename`) or LibreOffice (`.~lock.filename#`) lock files. |
+| `adicionar_imagem(...)` | — | **Not implemented** — raises `NotImplementedError`. |
 
-| Método | Retorno | Descrição |
-|--------|---------|-----------|
-| `ler_excel()` | `dict[int, tuple]` | Valida existência e extensão `.xlsx`, lê todas as linhas da **planilha ativa** e retorna um dicionário cuja chave é o índice da linha (começando em 1) e o valor é uma tupla com os valores das colunas. |
-| `get_celula(linha, coluna)` | `Cell \| MergedCell` | Retorna o objeto de célula do openpyxl (linhas e colunas são **1-based**). |
-| `get_valor_celula(linha, coluna)` | `Any` | Atalho para `.value` da célula. |
-| `set_valor_celula(linha, coluna, valor)` | `None` | Define o valor da célula. |
-| `adicionar_imagem(caminho_imagem, celula, altura, largura)` | — | Insere imagem na planilha ativa; `celula` é referência estilo Excel (ex.: `"B2"`). |
-| `salvar_planilha(caminho=None)` | `Path` | Persiste o workbook. Se `caminho` for omitido, usa `caminho_planilha`. Cria diretórios pais se necessário. |
-| `fechar_planilha()` | — | Fecha o workbook e limpa `_sheet_data`. |
-| `is_spreadsheet_locked()` | `bool` | Verifica se há arquivo de lock do Excel (`~$nome.xlsx`) ou LibreOffice (`.~lock.nome.xlsx#`) no mesmo diretório. |
+#### `read_sheet()` options
 
-**Métodos protegidos (uso interno / extensão)**
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `sheet_name` | `None` | Sheet to read; uses the active sheet when omitted. |
+| `cell_values_only` | `False` | Return cell values instead of `Cell` objects. |
+| `return_cell_coords` | `True` | Use coordinates (`"A1"`) as keys; otherwise use column numbers. |
+| `read_only` | `False` | Open in read-optimized mode (no edits). |
+| `keep_formulae` | `True` | Return formulas instead of cached values. |
+| `read_locked` | `False` | Allow reading while another app has the file open. |
+| `close_workbook` | `True` | Close the workbook after reading. |
 
-| Método | Descrição |
-|--------|-----------|
-| `_abrir_workbook(*args, **kwargs)` | Carrega ou reutiliza o workbook; falha se a planilha estiver bloqueada. |
-| `_fechar_workbook()` | Fecha e zera estado interno. |
-| `_planilha_ativa()` | Retorna a worksheet ativa; levanta `NoActiveSheetException` se não houver. |
-| `_read_xlsx()` | Itera `iter_rows(values_only=True)` e popula `_sheet_data`. |
-| `_is_xlsx_locked()` | Detecta lock temporário do Excel. |
-| `_is_ods_locked()` | Detecta lock do LibreOffice (padrão `.~lock.<arquivo>#`). |
-
-**Exceções que podem ser lançadas (além das customizadas)**
-
-- `FileNotFoundError`: arquivo inexistente em `ler_excel()` ou `is_spreadsheet_locked()`.
-- `ValueError`: extensão diferente de `.xlsx` em `ler_excel()`.
-
----
-
-#### `EstilizadorDeCelula`
-
-Helper para aplicar estilo a uma célula já obtida via `LeitorXLSX.get_celula()`.
-
-| Membro | Descrição |
-|--------|-----------|
-| `celula` | Referência `Cell` ou `MergedCell` do openpyxl. |
-
-**Construtor**
+#### Example `read_sheet()` output
 
 ```python
-EstilizadorDeCelula(celula: Cell | MergedCell)
+{
+    1: {"A1": "ID", "B1": "Title", "C1": "Genre"},
+    2: {"A2": 123, "B2": "Alien", "C2": "Science Fiction, Horror"},
+    3: {"A3": 124, "B3": "Predator", "C3": "Science Fiction, Action"},
+}
 ```
 
-**Métodos**
+### Exceptions
 
-| Método | Descrição |
-|--------|-----------|
-| `alinhar(horizontal, vertical, quebrar_texo)` | Define `Alignment` (valores aceitos pelo openpyxl, ex.: `"left"`, `"center"`, `"right"`). `quebrar_texo` mapeia para `wrapText`. |
-| `formatar(formato)` | Define `number_format` da célula (ex.: `"#,##0.00"`, `"dd/mm/yyyy"`). |
+All custom exceptions inherit from `SpreadsheetReaderException`.
 
----
+| Exception | When raised |
+|-----------|-------------|
+| `NoActiveSpreadsheetException` | The workbook has no active sheet when one is required. |
+| `SpreadsheetIsLockedException` | The file is open in Excel or LibreOffice and `read_locked=False`. |
 
-### Exceções
+Other errors you may encounter:
 
-#### `NoActiveSheetException`
+- `FileNotFoundError` — workbook path does not exist.
+- `ValueError` — unsupported file extension or missing cell coordinates.
 
-Herda de `Exception`. Levantada em `_planilha_ativa()` quando o workbook não possui planilha ativa (`active` é `None`). Indica arquivo corrompido, vazio ou estrutura inesperada.
-
-#### `SpreadsheetIsLockedException`
-
-Herda de `Exception`. Levantada em `_abrir_workbook()` quando `is_spreadsheet_locked()` retorna `True`, ou seja, outro processo (Excel ou LibreOffice) mantém o arquivo aberto. Evita leitura/gravação concorrente que poderia corromper dados ou falhar silenciosamente.
-
----
-
-## Estrutura do repositório
+## Project structure
 
 ```
-leitor-planilha-python/
-├── main.py           # LeitorXLSX, EstilizadorDeCelula e exceções
-├── requirements.txt
+python-spreadsheet-reader/
+├── python_spreadsheet_reader/
+│   └── readers/
+│       ├── xlsx.py          # XLSXReader
+│       └── exceptions.py    # Custom exceptions
+├── pyproject.toml
+├── poetry.lock
 └── README.md
 ```
 
-## Licença
+## Dependencies
 
-Consulte o repositório ou os mantenedores do projeto para informações de licenciamento.
+- [openpyxl](https://pypi.org/project/openpyxl/) — read and write `.xlsx` files
+- [Pillow](https://pypi.org/project/Pillow/) — image support for openpyxl
+- [ipykernel](https://pypi.org/project/ipykernel/) — Jupyter kernel support
+
+## License
+
+See the repository maintainers for licensing information.
