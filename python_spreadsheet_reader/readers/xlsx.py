@@ -27,11 +27,30 @@ class XLSXReader:
             self,
             read_only: bool = False,
             keep_vba: bool = False,
-            data_only: bool = False,
+            keep_formulae: bool = True,
             keep_links: bool = True,
-            rich_text: bool = False,
+            keep_rich_text: bool = False,
             read_locked: bool = False
     ) -> openpyxl.Workbook:
+        """
+        Opens and returns the workbook.
+        Args:
+            read_only:
+                Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to True.
+            keep_vba:
+                If True, preserves VBA content (this does NOT mean you can use it). Defaults to False.
+            keep_formulae:
+                If True, returns cell formulae instead of cached values. Defaults to True.
+            keep_links:
+                If True, preserves links to external workbooks. Defaults to True.
+            keep_rich_text:
+                If True, preserves any rich text formatting in cells. Defaults to False.
+            read_locked:
+                If True, allows the reading of locked (currently opened) spreadsheets. Defaults to False.
+
+        Returns:
+            *openpyxl.Workbook* object
+        """
         # Validations
         if not self.workbook_path.exists():
             raise FileNotFoundError(
@@ -42,7 +61,12 @@ class XLSXReader:
         if self._workbook is not None:
             return self._workbook
         wb = openpyxl.load_workbook(
-            self.workbook_path, read_only, keep_vba, data_only, keep_links, rich_text
+            filename=self.workbook_path,
+            read_only=read_only,
+            keep_vba=keep_vba,
+            data_only=(not keep_formulae),
+            keep_links=keep_links,
+            rich_text=keep_rich_text
         )
         self._workbook = wb
         return wb
@@ -55,27 +79,36 @@ class XLSXReader:
 
     def read_sheet(
             self, sheet_name: str | None = None,
-            read_only: bool = True,
             cell_values_only: bool = False,
             return_cell_coords: bool = True,
-            preserve_formulas: bool = True,
+            read_only: bool = False,
+            keep_vba: bool = False,
+            keep_formulae: bool = True,
+            keep_links: bool = True,
+            keep_rich_text: bool = False,
             read_locked: bool = False,
-            close_workbook: bool = True
+            close_workbook: bool = True,
     ) -> dict[int, dict]:
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
         Args:
             sheet_name:
                 Name of the sheet to read data from. If not specified, returns the data from the active sheet.
-            read_only:
-                Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to True.
             cell_values_only:
                 If True, returns cell values (str, int, datetime, etc.) instead of Cell objects. Defaults to False.
             return_cell_coords:
                 If True, returns cell coordinates (A1, B2, C3, ect.) instead of column numbers.
                 Does not affect row numbers. Defaults to True.
-            preserve_formulas:
+            read_only:
+                Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to True.
+            keep_vba:
+                If True, preserves VBA content (this does NOT mean you can use it). Defaults to False.
+            keep_formulae:
                 If True, returns cell formulae instead of cached values. Defaults to True.
+            keep_links:
+                If True, preserves links to external workbooks. Defaults to True.
+            keep_rich_text:
+                If True, preserves any rich text formatting in cells. Defaults to False.
             read_locked:
                 If True, allows the reading of locked (currently opened) spreadsheets. Defaults to False.
             close_workbook:
@@ -107,9 +140,12 @@ class XLSXReader:
             case ".xlsx":
                 # Open workbook
                 self.load_workbook(
-                    read_only=read_only,
-                    data_only=(not preserve_formulas),
-                    read_locked=read_locked,
+                    read_only,
+                    keep_vba,
+                    keep_formulae,
+                    keep_links,
+                    keep_rich_text,
+                    read_locked,
                 )
                 # Get active (or specific, if provided) spreadsheet
                 ws = self._get_worksheet(sheet_name)
