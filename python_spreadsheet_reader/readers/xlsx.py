@@ -11,6 +11,12 @@ import re
 
 class XLSXReader:
     def __init__(self, workbook_path: str | Path) -> None:
+        """Initializes the reader with the path to the target workbook.
+
+        Args:
+            workbook_path: Path to the .xlsx workbook to read from or write
+                to. Can be provided as a string or a Path object.
+        """
         self.workbook_path: Path = Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
         self._sheet_data: dict[int, dict] = {}  # Local cache
         self._workbook: openpyxl.Workbook | None = None
@@ -68,6 +74,11 @@ class XLSXReader:
         return wb
 
     def close_workbook(self):
+        """Closes the currently loaded workbook, if any.
+
+        Releases the underlying workbook resource and clears the local
+        sheet data cache. Has no effect if no workbook is currently loaded.
+        """
         if self._workbook:
             self._workbook.close()
             self._workbook = None
@@ -210,6 +221,30 @@ class XLSXReader:
             col: int | None = None,
             sheet_name: str | None = None
     ) -> Cell | MergedCell:
+        """Sets the value of the cell at the given coordinates or row/column number.
+
+        Note: Either *coords* or *row/col* are needed for this method to work.
+        If both are given, coords takes precedence.
+
+        Args:
+            value:
+                The value to assign to the target cell.
+            coords (str | None):
+                Cell coordinates (A1, B2, C3, etc...).
+            row (int | None):
+                The row number (1-based).
+            col (int | None):
+                The column number (1-based).
+            sheet_name (str | None, optional):
+                Name of the sheet the cell is located in.
+                If not given, assumes the cell is located in the active sheet.
+
+        Raises:
+            ValueError: when neither *coords* or *row/col* numbers are given.
+
+        Returns:
+            Cell | MergedCell: The updated Cell or MergedCell object.
+        """
         cell = self.get_cell(coords, row, col, sheet_name)
         cell.value = value
         return cell
@@ -217,6 +252,20 @@ class XLSXReader:
     def adicionar_imagem(
         self, caminho_imagem: str, celula: str, altura: int, largura: int
     ):
+        """Inserts an image into a cell of the active worksheet.
+
+        Note: Not yet implemented; calling this method currently raises
+        NotImplementedError.
+
+        Args:
+            caminho_imagem: Path to the image file to insert.
+            celula: Cell coordinate (e.g. "A1") where the image will be anchored.
+            altura: Height to resize the image to, in pixels.
+            largura: Width to resize the image to, in pixels.
+
+        Raises:
+            NotImplementedError: Always, as this method has not been implemented.
+        """
         raise NotImplementedError
         imagem = Image(caminho_imagem)
         imagem.height = altura
@@ -225,6 +274,20 @@ class XLSXReader:
         ws.add_image(imagem, celula)
 
     def save_spreadsheet(self, workbook_path: str | Path | None = None, close_workbook: bool = True) -> Path:
+        """Saves the loaded workbook to disk.
+
+        Args:
+            workbook_path:
+                Destination path to save the workbook to. If not given, saves
+                to *self.workbook_path*, overwriting the original file.
+                Parent directories are created automatically if they don't
+                already exist.
+            close_workbook:
+                If True, closes the workbook after saving. Defaults to True.
+
+        Returns:
+            Path: The path the workbook was saved to.
+        """
         if workbook_path:
             p: Path = Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
         else:
@@ -264,6 +327,19 @@ class XLSXReader:
     # * ---------------------------------------------------------------------------
 
     def _get_worksheet(self, sheet_name: str | None = None):
+        """Retrieves a worksheet from the loaded workbook.
+
+        Args:
+            sheet_name: Name of the sheet to retrieve. If not given, returns
+                the workbook's active sheet.
+
+        Raises:
+            NoActiveSpreadsheetException: If *sheet_name* is not given and
+                the workbook has no active sheet.
+
+        Returns:
+            Worksheet: The requested worksheet object.
+        """
         wb = self.load_workbook()
         if sheet_name:
             return wb[sheet_name]
