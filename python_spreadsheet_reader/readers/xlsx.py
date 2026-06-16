@@ -108,7 +108,8 @@ class XLSXReader:
                 # Open workbook
                 self.load_workbook(
                     read_only=read_only,
-                    data_only=(not preserve_formulas)
+                    data_only=(not preserve_formulas),
+                    read_locked=read_locked,
                 )
                 # Get active (or specific, if provided) spreadsheet
                 ws = self._get_worksheet(sheet_name)
