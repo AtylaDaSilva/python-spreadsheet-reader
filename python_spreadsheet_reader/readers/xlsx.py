@@ -11,11 +11,7 @@ import re
 
 class XLSXReader:
     def __init__(self, workbook_path: str | Path) -> None:
-        self.workbook_path: Path = (
-            Path(workbook_path)
-            if isinstance(workbook_path, str)
-            else workbook_path
-        )
+        self.workbook_path: Path = Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
         self._sheet_data: dict[int, dict] = {}  # Local cache
         self._workbook: openpyxl.Workbook | None = None
 
@@ -175,6 +171,28 @@ class XLSXReader:
             col: int | None = None,
             sheet_name: str | None = None
     ) -> Cell | MergedCell:
+        """Returns the cell at the given coordinates or row/column number.
+
+        Note: Either *coords* or *row/col* are needed for this method to work.
+        If both are given, coords takes precedence.
+
+        Args:
+            coords (str | None):
+                Cell coordinates (A1, B2, C3, etc...).
+            row (int | None):
+                The row number (1-based).
+            col (int | None):
+                The column number (1-based).
+            sheet_name (str | None, optional):
+                Name of the sheet the cell is located in.
+                If not given, assumes the cell is located in the active sheet.
+
+        Raises:
+            ValueError: when neither *coords* or *row/col* numbers are given.
+
+        Returns:
+            Cell | MergedCell: Cell or MergedCell objects.
+        """
         ws = self._get_worksheet(sheet_name)
 
         if coords:
