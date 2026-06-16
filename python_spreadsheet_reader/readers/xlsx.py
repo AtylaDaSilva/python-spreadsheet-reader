@@ -1,4 +1,4 @@
-from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException
+from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException, NoActiveSpreadsheetException
 import openpyxl
 from openpyxl.styles import Alignment
 from openpyxl.cell.cell import Cell, MergedCell
@@ -11,16 +11,47 @@ import re
 
 class XLSXReader:
     def __init__(self, workbook_path: str | Path) -> None:
-        self.workbook_path = (
+        self.workbook_path: Path = (
             Path(workbook_path)
             if isinstance(workbook_path, str)
             else workbook_path
         )
         self._sheet_data: dict[int, dict] = {}  # Local cache
+        self._workbook: openpyxl.Workbook | None = None
 
     # * ---------------------------------------------------------------------------
     # *                               Public API
     # * ---------------------------------------------------------------------------
+    
+    def load_workbook(
+            self,
+            read_only: bool = False,
+            keep_vba: bool = False,
+            data_only: bool = False,
+            keep_links: bool = True,
+            rich_text: bool = False,
+            read_locked: bool = False
+    ) -> openpyxl.Workbook:
+        # Validations
+        if not self.workbook_path.exists():
+            raise FileNotFoundError(
+                f'Could not find workbook "{self.workbook_path}"'.replace("\\", "/")
+            )
+        elif not read_locked and self.is_spreadsheet_locked():
+            raise SpreadsheetIsLockedException(self.workbook_path)
+        if self._workbook is not None:
+            return self._workbook
+        wb = openpyxl.load_workbook(
+            self.workbook_path, read_only, keep_vba, data_only, keep_links, rich_text
+        )
+        self._workbook = wb
+        return wb
+
+    def close_workbook(self):
+        if self._workbook:
+            self._workbook.close()
+            self._workbook = None
+            self._sheet_data = {}
 
     def read_sheet(
             self, sheet_name: str | None = None,
@@ -28,7 +59,8 @@ class XLSXReader:
             cell_values_only: bool = False,
             return_cell_coords: bool = True,
             preserve_formulas: bool = True,
-            read_locked: bool = False
+            read_locked: bool = False,
+            close_workbook: bool = True
     ) -> dict[int, dict]:
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
@@ -46,6 +78,8 @@ class XLSXReader:
                 If True, returns cell formulae instead of cached values. Defaults to True.
             read_locked:
                 If True, allows the reading of locked (currently opened) spreadsheets. Defaults to False.
+            close_workbook:
+                If True, closes the workbook after returning the data. Defaults to True.
 
         Returns: A dict of sheet rows, each key representing the row number (1-based) and each value a nested dict.
         The nested dicts represents cells, with cell coordinates (or column numbers) as keys and cell values (or objects) as values.
@@ -69,26 +103,15 @@ class XLSXReader:
             }
 
         """
-        # Validations
-        if not self.workbook_path.exists():
-            raise FileNotFoundError(
-                f'Spreadsheet not found: "{self.workbook_path}"'.replace("\\", "/")  # Formatar \\ no caminho do arquivo
-            )
-        elif not read_locked and self.is_spreadsheet_locked():
-            raise SpreadsheetIsLockedException(f'Cannot read locked spreadsheet: "{self.workbook_path}"')
-
         match self.workbook_path.suffix.lower():
             case ".xlsx":
-                # Open active workbook (or specific, if provided)
-                wb = openpyxl.load_workbook(
-                    self.workbook_path,
+                # Open workbook
+                self.load_workbook(
                     read_only=read_only,
                     data_only=(not preserve_formulas)
                 )
-                if sheet_name:
-                    ws = wb[sheet_name]
-                else:
-                    ws = wb.active
+                # Get active (or specific, if provided) spreadsheet
+                ws = self._get_worksheet(sheet_name)
 
                 # Iterate through rows/cols to get cell values
                 rows = {}
@@ -100,20 +123,41 @@ class XLSXReader:
                         r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
                     if len(r) > 0:  # Ignore empty rows
                         rows[i + 1] = r
+                if close_workbook:
+                    self.close_workbook()
+                    return rows
                 self._sheet_data = rows
-                wb.close()
                 return self._sheet_data
             case _:
                 raise ValueError(f'Unsupported file type: "{self.workbook_path.suffix}".')
 
-    def get_cell(self, row: int, col: int) -> Cell | MergedCell:
-        raise NotImplementedError
-        ws = self._planilha_ativa()
-        return ws.cell(row=row, column=col)
+    def get_cell(
+            self,
+            coords: str | None = None,
+            row: int | None = None,
+            col: int | None = None,
+            sheet_name: str | None = None
+    ) -> Cell | MergedCell:
+        ws = self._get_worksheet(sheet_name)
 
-    def set_cell_value(self, linha: int, coluna: int, valor: Any) -> None:
-        raise NotImplementedError
-        self.get_celula(linha=linha, coluna=coluna).value = valor
+        if coords:
+            return ws[coords]
+        elif row and col:
+            return ws.cell(row=row, column=col)
+        else:
+            raise ValueError(f"Provide either cell coordinates or row/col indices.")
+
+    def set_cell_value(
+            self,
+            value: Any,
+            coords: str | None = None,
+            row: int | None = None,
+            col: int | None = None,
+            sheet_name: str | None = None
+    ) -> Cell | MergedCell:
+        cell = self.get_cell(coords, row, col, sheet_name)
+        cell.value = value
+        return cell
 
     def adicionar_imagem(
         self, caminho_imagem: str, celula: str, altura: int, largura: int
@@ -125,13 +169,16 @@ class XLSXReader:
         ws = self._planilha_ativa()
         ws.add_image(imagem, celula)
 
-    def salvar_planilha(self, caminho: str | Path | None = None) -> Path:
-        raise NotImplementedError
-        wb = self._abrir_workbook()
-        p: Path = self.caminho_planilha if not caminho else Path(caminho)
-        if not p.parent.is_dir():
-            p.parent.mkdir(parents=True, exist_ok=True)
+    def save_spreadsheet(self, workbook_path: str | Path | None = None, close_workbook: bool = True) -> Path:
+        if workbook_path:
+            p: Path = Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
+        else:
+            p: Path = self.workbook_path
+        p.parent.mkdir(parents=True, exist_ok=True)
+        wb = self.load_workbook()
         wb.save(p)
+        if close_workbook:
+            self.close_workbook()
         return p
 
     def is_spreadsheet_locked(self) -> bool:
@@ -161,30 +208,13 @@ class XLSXReader:
     # *                                Internal API
     # * ---------------------------------------------------------------------------
 
-    def _abrir_workbook(self, *args, **kwargs) -> openpyxl.Workbook:
-        raise NotImplementedError
-        if self.is_spreadsheet_locked():
-            raise SpreadsheetIsLockedException(self.caminho_planilha)
-        if self._workbook is not None:
-            return self._workbook
-        wb = openpyxl.load_workbook(self.caminho_planilha, *args, **kwargs)
-        self._workbook = wb
-        return wb
-
-    def _fechar_workbook(self):
-        raise NotImplementedError
-        if self._workbook:
-            self._workbook.close()
-            self._workbook = None
-            self._sheet_data = {}
-
-    def _planilha_ativa(self):
-        raise NotImplementedError
-        active_sheet = self._abrir_workbook().active
+    def _get_worksheet(self, sheet_name: str | None = None):
+        wb = self.load_workbook()
+        if sheet_name:
+            return wb[sheet_name]
+        active_sheet = wb.active
         if active_sheet is None:
-            raise NoActiveSheetException(
-                f"Não foi possível localizar a planilha ativa no excel {self.caminho_planilha}"
-            )
+            raise NoActiveSpreadsheetException(self.workbook_path)
         return active_sheet
 
     def _is_xlsx_locked(self) -> bool:
