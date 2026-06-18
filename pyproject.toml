@@ -1,6 +1,6 @@
 [project]
 name = "python-spreadsheet-reader"
-version = "1.0.0"
+version = "1.1.0"
 description = "A collection of classes for working with spreadsheet files, made with Python 3.14+"
 authors = [
     {name = "AtylaDaSilva",email = "atylamendes97@gmail.com"}
