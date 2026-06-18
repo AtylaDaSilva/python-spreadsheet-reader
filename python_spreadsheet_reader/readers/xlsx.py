@@ -1,11 +1,10 @@
 from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException, NoActiveSpreadsheetException
-import openpyxl
-from openpyxl.styles import Alignment
 from openpyxl.cell.cell import Cell, MergedCell
 from openpyxl.drawing.image import Image
+import openpyxl
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
-import os
 import re
 
 
@@ -88,14 +87,14 @@ class XLSXReader:
             self, sheet_name: str | None = None,
             cell_values_only: bool = False,
             return_cell_coords: bool = True,
-            read_only: bool = False,
+            lazy_load: bool = False,
             keep_vba: bool = False,
             keep_formulae: bool = True,
             keep_links: bool = True,
             keep_rich_text: bool = False,
             read_locked: bool = False,
             close_workbook: bool = True,
-    ) -> dict[int, dict]:
+    ) -> Generator[dict[str, Any], None, dict[int, dict]]:
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
         Args:
@@ -106,8 +105,8 @@ class XLSXReader:
             return_cell_coords:
                 If True, returns cell coordinates (A1, B2, C3, ect.) instead of column numbers.
                 Does not affect row numbers. Defaults to True.
-            read_only:
-                Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to True.
+            lazy_load:
+                Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to False.
             keep_vba:
                 If True, preserves VBA content (this does NOT mean you can use it). Defaults to False.
             keep_formulae:
@@ -123,6 +122,7 @@ class XLSXReader:
 
         Returns: A dict of sheet rows, each key representing the row number (1-based) and each value a nested dict.
         The nested dicts represents cells, with cell coordinates (or column numbers) as keys and cell values (or objects) as values.
+        If *lazy_load* is True, returns a Generator instead, and each row is yielded one by one.
 
         Examples:
             >>>reader = XLSXReader(workbook_path="path/to/workbook.xlsx")
@@ -147,7 +147,7 @@ class XLSXReader:
             case ".xlsx":
                 # Open workbook
                 self.load_workbook(
-                    read_only,
+                    lazy_load,
                     keep_vba,
                     keep_formulae,
                     keep_links,
@@ -165,8 +165,12 @@ class XLSXReader:
                         if isinstance(cell, openpyxl.cell.read_only.EmptyCell):  # Ignore empty cells
                             continue
                         r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
-                    if len(r) > 0:  # Ignore empty rows
-                        rows[i + 1] = r
+                    if len(r) <= 0:  # Ignore empty rows
+                        continue
+                    elif lazy_load:
+                        yield r
+
+                    rows[i + 1] = r
                 if close_workbook:
                     self.close_workbook()
                     return rows
