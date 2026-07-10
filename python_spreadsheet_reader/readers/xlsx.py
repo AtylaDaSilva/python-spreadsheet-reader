@@ -87,14 +87,14 @@ class XLSXReader:
             self, sheet_name: str | None = None,
             cell_values_only: bool = False,
             return_cell_coords: bool = True,
-            lazy_load: bool = False,
+            read_only: bool = False,
             keep_vba: bool = False,
             keep_formulae: bool = True,
             keep_links: bool = True,
             keep_rich_text: bool = False,
             read_locked: bool = False,
             close_workbook: bool = True,
-    ) -> Generator[dict[str, Any], None, dict[int, dict]]:
+    ):
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
         Args:
@@ -105,7 +105,7 @@ class XLSXReader:
             return_cell_coords:
                 If True, returns cell coordinates (A1, B2, C3, ect.) instead of column numbers.
                 Does not affect row numbers. Defaults to True.
-            lazy_load:
+            read_only:
                 Opens the workbook in an optimized for reading mode, but content can't be edited. Defaults to False.
             keep_vba:
                 If True, preserves VBA content (this does NOT mean you can use it). Defaults to False.
@@ -147,7 +147,7 @@ class XLSXReader:
             case ".xlsx":
                 # Open workbook
                 self.load_workbook(
-                    lazy_load,
+                    read_only,
                     keep_vba,
                     keep_formulae,
                     keep_links,
@@ -167,8 +167,6 @@ class XLSXReader:
                         r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
                     if len(r) <= 0:  # Ignore empty rows
                         continue
-                    elif lazy_load:
-                        yield r
 
                     rows[i + 1] = r
                 if close_workbook:
