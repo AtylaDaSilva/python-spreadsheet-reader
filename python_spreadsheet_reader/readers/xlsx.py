@@ -143,39 +143,37 @@ class XLSXReader:
             }
 
         """
-        match self.workbook_path.suffix.lower():
-            case ".xlsx":
-                # Open workbook
-                self.load_workbook(
-                    read_only,
-                    keep_vba,
-                    keep_formulae,
-                    keep_links,
-                    keep_rich_text,
-                    read_locked,
-                )
-                # Get active (or specific, if provided) spreadsheet
-                ws = self._get_worksheet(sheet_name)
+        self._validade_file_type(["xlsx"])
 
-                # Iterate through rows/cols to get cell values
-                rows = {}
-                for i, row in enumerate(ws.iter_rows()):
-                    r = {}
-                    for cell in row:
-                        if isinstance(cell, openpyxl.cell.read_only.EmptyCell):  # Ignore empty cells
-                            continue
-                        r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
-                    if len(r) <= 0:  # Ignore empty rows
-                        continue
+        # Open workbook
+        self.load_workbook(
+            read_only,
+            keep_vba,
+            keep_formulae,
+            keep_links,
+            keep_rich_text,
+            read_locked,
+        )
+        # Get active (or specific, if provided) spreadsheet
+        ws = self._get_worksheet(sheet_name)
 
-                    rows[i + 1] = r
-                if close_workbook:
-                    self.close_workbook()
-                    return rows
-                self._sheet_data = rows
-                return self._sheet_data
-            case _:
-                raise ValueError(f'Unsupported file type: "{self.workbook_path.suffix}".')
+        # Iterate through rows/cols to get cell values
+        rows = {}
+        for i, row in enumerate(ws.iter_rows()):
+            r = {}
+            for cell in row:
+                if isinstance(cell, openpyxl.cell.read_only.EmptyCell):  # Ignore empty cells
+                    continue
+                r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
+            if len(r) <= 0:  # Ignore empty rows
+                continue
+
+            rows[i + 1] = r
+        if close_workbook:
+            self.close_workbook()
+            return rows
+        self._sheet_data = rows
+        return self._sheet_data
 
     def get_cell(
             self,
@@ -327,6 +325,13 @@ class XLSXReader:
     # * ---------------------------------------------------------------------------
     # *                                Internal API
     # * ---------------------------------------------------------------------------
+
+
+    def _validade_file_type(self, allowed_types: list[str] = []):
+        wb_file_ext = self.workbook_path.suffix.lower().replace(".", "")
+        if wb_file_ext not in [t.replace(".", "") for t in allowed_types]:
+            raise ValueError(f'Unsupported file type: `{wb_file_ext}`')
+
 
     def _get_worksheet(self, sheet_name: str | None = None):
         """Retrieves a worksheet from the loaded workbook.
