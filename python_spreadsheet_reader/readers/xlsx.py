@@ -100,7 +100,7 @@ class XLSXReader:
         keep_rich_text: bool = False,
         read_locked: bool = False,
         close_workbook: bool = True,
-    ):
+    ) -> dict[str, Any]:
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
         Args:
@@ -194,7 +194,7 @@ class XLSXReader:
         keep_links: bool = True,
         keep_rich_text: bool = False,
         read_locked: bool = False,
-    ):
+    ) -> Generator[dict[str, Any], None, None]:
         """
         Returns a generator that yields row-by-row read-only data from the spreadsheet located at *self.workbook_path*.
 
