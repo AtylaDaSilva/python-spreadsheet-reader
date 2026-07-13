@@ -100,7 +100,7 @@ class XLSXReader:
         keep_rich_text: bool = False,
         read_locked: bool = False,
         close_workbook: bool = True,
-    ) -> dict[str, Any]:
+    ) -> dict[int, dict[str, Any]]:
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
         Args:
