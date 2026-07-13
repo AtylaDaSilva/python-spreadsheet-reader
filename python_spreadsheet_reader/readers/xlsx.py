@@ -1,4 +1,7 @@
-from python_spreadsheet_reader.readers.exceptions import SpreadsheetIsLockedException, NoActiveSpreadsheetException
+from python_spreadsheet_reader.readers.exceptions import (
+    SpreadsheetIsLockedException,
+    NoActiveSpreadsheetException,
+)
 from openpyxl.cell.cell import Cell, MergedCell
 from openpyxl.drawing.image import Image
 import openpyxl
@@ -16,22 +19,24 @@ class XLSXReader:
             workbook_path: Path to the .xlsx workbook to read from or write
                 to. Can be provided as a string or a Path object.
         """
-        self.workbook_path: Path = Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
+        self.workbook_path: Path = (
+            Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
+        )
         self._sheet_data: dict[int, dict] = {}  # Local cache
         self._workbook: openpyxl.Workbook | None = None
 
     # * ---------------------------------------------------------------------------
     # *                               Public API
     # * ---------------------------------------------------------------------------
-    
+
     def load_workbook(
-            self,
-            read_only: bool = False,
-            keep_vba: bool = False,
-            keep_formulae: bool = True,
-            keep_links: bool = True,
-            keep_rich_text: bool = False,
-            read_locked: bool = False
+        self,
+        read_only: bool = False,
+        keep_vba: bool = False,
+        keep_formulae: bool = True,
+        keep_links: bool = True,
+        keep_rich_text: bool = False,
+        read_locked: bool = False,
     ) -> openpyxl.Workbook:
         """
         Opens and returns the workbook.
@@ -67,7 +72,7 @@ class XLSXReader:
             keep_vba=keep_vba,
             data_only=(not keep_formulae),
             keep_links=keep_links,
-            rich_text=keep_rich_text
+            rich_text=keep_rich_text,
         )
         self._workbook = wb
         return wb
@@ -84,16 +89,17 @@ class XLSXReader:
             self._sheet_data = {}
 
     def read_sheet(
-            self, sheet_name: str | None = None,
-            cell_values_only: bool = False,
-            return_cell_coords: bool = True,
-            read_only: bool = False,
-            keep_vba: bool = False,
-            keep_formulae: bool = True,
-            keep_links: bool = True,
-            keep_rich_text: bool = False,
-            read_locked: bool = False,
-            close_workbook: bool = True,
+        self,
+        sheet_name: str | None = None,
+        cell_values_only: bool = False,
+        return_cell_coords: bool = True,
+        read_only: bool = False,
+        keep_vba: bool = False,
+        keep_formulae: bool = True,
+        keep_links: bool = True,
+        keep_rich_text: bool = False,
+        read_locked: bool = False,
+        close_workbook: bool = True,
     ):
         """
         Returns the data from the spreadsheet located at *self.workbook_path*.
@@ -162,9 +168,13 @@ class XLSXReader:
         for i, row in enumerate(ws.iter_rows()):
             r = {}
             for cell in row:
-                if isinstance(cell, openpyxl.cell.read_only.EmptyCell):  # Ignore empty cells
+                if isinstance(
+                    cell, openpyxl.cell.read_only.EmptyCell
+                ):  # Ignore empty cells
                     continue
-                r[cell.coordinate if return_cell_coords else cell.column] = cell.value if cell_values_only else cell
+                r[cell.coordinate if return_cell_coords else cell.column] = (
+                    cell.value if cell_values_only else cell
+                )
             if len(r) <= 0:  # Ignore empty rows
                 continue
 
@@ -176,11 +186,11 @@ class XLSXReader:
         return self._sheet_data
 
     def get_cell(
-            self,
-            coords: str | None = None,
-            row: int | None = None,
-            col: int | None = None,
-            sheet_name: str | None = None
+        self,
+        coords: str | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        sheet_name: str | None = None,
     ) -> Cell | MergedCell:
         """Returns the cell at the given coordinates or row/column number.
 
@@ -214,12 +224,12 @@ class XLSXReader:
             raise ValueError(f"Provide either cell coordinates or row/col indices.")
 
     def set_cell_value(
-            self,
-            value: Any,
-            coords: str | None = None,
-            row: int | None = None,
-            col: int | None = None,
-            sheet_name: str | None = None
+        self,
+        value: Any,
+        coords: str | None = None,
+        row: int | None = None,
+        col: int | None = None,
+        sheet_name: str | None = None,
     ) -> Cell | MergedCell:
         """Sets the value of the cell at the given coordinates or row/column number.
 
@@ -273,7 +283,9 @@ class XLSXReader:
         ws = self._planilha_ativa()
         ws.add_image(imagem, celula)
 
-    def save_spreadsheet(self, workbook_path: str | Path | None = None, close_workbook: bool = True) -> Path:
+    def save_spreadsheet(
+        self, workbook_path: str | Path | None = None, close_workbook: bool = True
+    ) -> Path:
         """Saves the loaded workbook to disk.
 
         Args:
@@ -289,7 +301,9 @@ class XLSXReader:
             Path: The path the workbook was saved to.
         """
         if workbook_path:
-            p: Path = Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
+            p: Path = (
+                Path(workbook_path) if isinstance(workbook_path, str) else workbook_path
+            )
         else:
             p: Path = self.workbook_path
         p.parent.mkdir(parents=True, exist_ok=True)
@@ -318,7 +332,9 @@ class XLSXReader:
             If filepath does not exist.
         """
         if not self.workbook_path.exists():
-            raise FileNotFoundError(f'Could not find spreadsheet: "{self.workbook_path}"')
+            raise FileNotFoundError(
+                f'Could not find spreadsheet: "{self.workbook_path}"'
+            )
 
         return self._is_xlsx_locked() or self._is_ods_locked()
 
@@ -326,12 +342,10 @@ class XLSXReader:
     # *                                Internal API
     # * ---------------------------------------------------------------------------
 
-
     def _validade_file_type(self, allowed_types: list[str] = []):
         wb_file_ext = self.workbook_path.suffix.lower().replace(".", "")
         if wb_file_ext not in [t.replace(".", "") for t in allowed_types]:
-            raise ValueError(f'Unsupported file type: `{wb_file_ext}`')
-
+            raise ValueError(f"Unsupported file type: `{wb_file_ext}`")
 
     def _get_worksheet(self, sheet_name: str | None = None):
         """Retrieves a worksheet from the loaded workbook.
@@ -363,9 +377,12 @@ class XLSXReader:
         Excel creates a temporary lock file prefixed with "~$" when a workbook
         is open. Its presence indicates the file is currently in use.
         """
-        return bool(re.search(r"~\$" + re.escape(self.workbook_path.name), " ".join(
-            f.name for f in self.workbook_path.parent.iterdir()
-        )))
+        return bool(
+            re.search(
+                r"~\$" + re.escape(self.workbook_path.name),
+                " ".join(f.name for f in self.workbook_path.parent.iterdir()),
+            )
+        )
 
     def _is_ods_locked(self) -> bool:
         """
@@ -375,6 +392,9 @@ class XLSXReader:
         LibreOffice creates a lock file with the pattern .~lock.<filename># when
         a document is open. Its presence indicates the file is currently in use.
         """
-        return bool(re.search(r"\.~lock\." + re.escape(self.workbook_path.name) + r"#", " ".join(
-            f.name for f in self.workbook_path.parent.iterdir()
-        )))
+        return bool(
+            re.search(
+                r"\.~lock\." + re.escape(self.workbook_path.name) + r"#",
+                " ".join(f.name for f in self.workbook_path.parent.iterdir()),
+            )
+        )
