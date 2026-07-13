@@ -88,7 +88,7 @@ class XLSXReader:
             self._workbook = None
             self._sheet_data = {}
 
-    def read_sheet(
+    def load_sheet(
         self,
         sheet_name: str | None = None,
         cell_values_only: bool = False,
@@ -128,7 +128,6 @@ class XLSXReader:
 
         Returns: A dict of sheet rows, each key representing the row number (1-based) and each value a nested dict.
         The nested dicts represents cells, with cell coordinates (or column numbers) as keys and cell values (or objects) as values.
-        If *lazy_load* is True, returns a Generator instead, and each row is yielded one by one.
 
         Examples:
             >>>reader = XLSXReader(workbook_path="path/to/workbook.xlsx")
