@@ -185,6 +185,93 @@ class XLSXReader:
         self._sheet_data = rows
         return self._sheet_data
 
+    def lazy_load_sheet(
+        self,
+        sheet_name: str | None = None,
+        cell_values_only: bool = False,
+        return_cell_coords: bool = True,
+        keep_vba: bool = False,
+        keep_formulae: bool = True,
+        keep_links: bool = True,
+        keep_rich_text: bool = False,
+        read_locked: bool = False,
+    ):
+        """
+        Returns a generator that yields row-by-row read-only data from the spreadsheet located at *self.workbook_path*.
+
+        Args:
+            sheet_name:
+                Name of the sheet to read data from. If not specified, returns the data from the active sheet.
+            cell_values_only:
+                If True, returns cell values (str, int, datetime, etc.) instead of Cell objects. Defaults to False.
+            return_cell_coords:
+                If True, returns cell coordinates (A1, B2, C3, ect.) instead of column numbers.
+                Does not affect row numbers. Defaults to True.
+            keep_vba:
+                If True, preserves VBA content (this does NOT mean you can use it). Defaults to False.
+            keep_formulae:
+                If True, returns cell formulae instead of cached values. Defaults to True.
+            keep_links:
+                If True, preserves links to external workbooks. Defaults to True.
+            keep_rich_text:
+                If True, preserves any rich text formatting in cells. Defaults to False.
+            read_locked:
+                If True, allows the reading of locked (currently opened) spreadsheets. Defaults to False.
+
+        Returns: A generator of sheet rows, each key representing the row number (1-based) and each value a nested dict.
+        The nested dicts represents cells, with cell coordinates (or column numbers) as keys and cell values (or objects) as values.
+
+        Examples:
+            >>>reader = XLSXReader(workbook_path="path/to/workbook.xlsx")
+            >>>sheet_data = reader.read_sheet("Sheet2", cell_values_only=True)
+
+            >>>print(sheet_name)
+
+            # Outputs
+
+            {
+                1: {"A1", "ID", "A2": "Title", "A3": "Genre"},
+
+                2: {"B1", 123, "B2": "Alien", "A3": "Science Fiction, Horror"},
+
+                2: {"C1", 124, "C2": "Predator", "A3": "Science Fiction, Action"},
+
+                ...
+            }
+
+        """
+        self._validade_file_type(["xlsx"])
+
+        # Open workbook
+        self.load_workbook(
+            True,
+            keep_vba,
+            keep_formulae,
+            keep_links,
+            keep_rich_text,
+            read_locked,
+        )
+        # Get active (or specific, if provided) spreadsheet
+        ws = self._get_worksheet(sheet_name)
+
+        # Iterate through rows/cols to get cell values
+        for i, row in enumerate(ws.iter_rows()):
+            r = {}
+            for cell in row:
+                if isinstance(
+                    cell, openpyxl.cell.read_only.EmptyCell
+                ):  # Ignore empty cells
+                    continue
+                r[cell.coordinate if return_cell_coords else cell.column] = (
+                    cell.value if cell_values_only else cell
+                )
+            if len(r) <= 0:  # Ignore empty rows
+                continue
+
+            yield r
+
+        self.close_workbook()
+
     def get_cell(
         self,
         coords: str | None = None,
