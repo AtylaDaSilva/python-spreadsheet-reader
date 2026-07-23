@@ -31,7 +31,7 @@ class XLSXCellStyler:
             italic: True to apply italic style. Defaults to None.
             underline: The underline style to apply. Defaults to None.
             strike: True to apply strikethrough style. Defaults to None.
-            color: The RGB hex color code (e.g., "#FF0000"). Defaults to None.
+            color: The RGB hex color code (e.g., "#000000"). Defaults to None.
             vert_align: The vertical alignment style. Defaults to None.
 
         Returns:
@@ -58,7 +58,7 @@ class XLSXCellStyler:
         """Apply a fill color to the cell.
 
         Args:
-            color: The fill color as a hex string (e.g., "#FF0000").
+            color: The fill color as a hex string (e.g., "#000000").
             fill_type: The pattern fill style to apply.
 
         Returns:
