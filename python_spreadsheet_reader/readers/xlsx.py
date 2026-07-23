@@ -2,6 +2,7 @@ from python_spreadsheet_reader.readers.exceptions import (
     SpreadsheetIsLockedException,
     NoActiveSpreadsheetException,
 )
+from python_spreadsheet_reader.styler.xlsx import XLSXCellStyler
 from openpyxl.cell.cell import Cell, MergedCell
 from openpyxl.cell.read_only import EmptyCell
 from openpyxl.drawing.image import Image
@@ -449,6 +450,9 @@ class XLSXReader:
             )
 
         return self._is_xlsx_locked() or self._is_ods_locked()
+
+    def style_cell(self, cell: Cell | MergedCell) -> XLSXCellStyler:
+        return XLSXCellStyler(cell)
 
     # * ---------------------------------------------------------------------------
     # *                                Internal API
