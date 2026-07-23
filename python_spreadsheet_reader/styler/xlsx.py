@@ -1,7 +1,18 @@
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, Protection, Color
 from openpyxl.cell.cell import Cell, MergedCell
 from typing import Self, Optional
-from .utils import VerticalAlignment, PatternFills, Underline, Positions, BorderStyles
+from .utils import (
+    HorizontalAlignment,
+    VerticalAlignment,
+    FontVerticalAlignment,
+    PatternFills,
+    Underline,
+    Positions,
+    BorderStyles,
+    TextRotationRangeValidator,
+    IndentRangeValidator,
+)
+from pydantic import ValidationError
 
 
 type CellOrMegedCell = Cell | MergedCell
@@ -20,7 +31,7 @@ class XLSXCellStyler:
         underline: Optional[Underline] = None,
         strike: Optional[bool] = None,
         color: Optional[str] = None,
-        vert_align: Optional[VerticalAlignment] = None,
+        vert_align: Optional[FontVerticalAlignment] = None,
     ) -> Self:
         """Applies font styles to the cell.
 
@@ -103,21 +114,54 @@ class XLSXCellStyler:
 
     def alignment(
         self,
-        horizontal=None,
-        vertical=None,
-        wrap_text=None,
-        shrink_to_fit=None,
-        text_rotation=None,
+        horizontal: Optional[HorizontalAlignment] = None,
+        vertical: Optional[VerticalAlignment] = None,
+        wrap_text: Optional[bool] = None,
+        shrink_to_fit: Optional[bool] = None,
+        text_rotation: Optional[int] = None,
         indent=None,
     ) -> Self:
+        """Apply alignment settings to the cell.
+
+        Args:
+            horizontal: The horizontal alignment to apply.
+            vertical: The vertical alignment to apply.
+            wrap_text: Whether to wrap text within the cell.
+            shrink_to_fit: Whether to shrink text to fit the cell.
+            text_rotation: The text rotation angle, between 0 and 180.
+            indent: The indentation level, between -255 and 255.
+
+        Returns:
+            Self: The styler instance for method chaining.
+
+        Raises:
+            ValueError: If text_rotation is outside the allowed range.
+            ValueError: If indent is outside the allowed range.
+        """
         current = self.cell.alignment
+        try:
+            tr = (
+                TextRotationRangeValidator(value=text_rotation).value
+                if text_rotation is not None else current.text_rotation
+            )
+        except ValidationError:
+            raise ValueError(f"Text rotation must be between 0 and 180, got: {text_rotation}")
+
+        try:
+            ind = (
+                IndentRangeValidator(value=indent).value
+                if indent is not None else current.indent
+            )
+        except ValidationError:
+            raise ValueError(f"Indent must be between -255 and 255, got: {indent}")
+
         self.cell.alignment = Alignment(
-            horizontal=horizontal if horizontal is not None else current.horizontal,
-            vertical=vertical if vertical is not None else current.vertical,
-            wrap_text=wrap_text if wrap_text is not None else current.wrap_text,
-            shrink_to_fit=shrink_to_fit if shrink_to_fit is not None else current.shrink_to_fit,
-            text_rotation=text_rotation if text_rotation is not None else current.text_rotation,
-            indent=indent if indent is not None else current.indent,
+            horizontal=horizontal.value if horizontal else current.horizontal,
+            vertical=vertical.value if vertical else current.vertical,
+            wrap_text=wrap_text or current.wrap_text,
+            shrink_to_fit=shrink_to_fit or current.shrink_to_fit,
+            text_rotation=tr,
+            indent=ind
         )
         return self
 

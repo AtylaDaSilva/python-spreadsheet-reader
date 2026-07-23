@@ -1,9 +1,27 @@
 from enum import StrEnum
+from pydantic import BaseModel, Field, PositiveInt
 
 
-# * Type Enums
+# * Type Utilities
 
 class VerticalAlignment(StrEnum):
+    TOP = "top"
+    CENTER = "center"
+    BOTTOM = "bottom"
+    JUSTIFY = "justify"
+    DISTRIBUTED = "distributed"
+
+class HorizontalAlignment(StrEnum):
+    GENERAL = "general"
+    LEFT = "left"
+    CENTER = "center"
+    RIGHT = "right"
+    FILL = "fill"
+    JUSTIFY = "justify"
+    CENTERCONTINUOUS = "centerContinuous"
+    DISTRIBUTED = "distributed"
+
+class FontVerticalAlignment(StrEnum):
     TOP = "superscript"
     CENTER = "baseline"
     BOTTOM = "subscript"
@@ -61,3 +79,9 @@ class BorderStyles(StrEnum):
     SLANTDASHDOT = 'slantDashDot'
     THICK = 'thick'
     THIN = 'thin'
+
+class TextRotationRangeValidator(BaseModel):
+    value: PositiveInt = Field(..., ge=0, le=180)
+
+class IndentRangeValidator(BaseModel):
+    value: int = Field(..., ge=-255, le=255)
