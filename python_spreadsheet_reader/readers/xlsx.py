@@ -3,6 +3,7 @@ from python_spreadsheet_reader.readers.exceptions import (
     NoActiveSpreadsheetException,
 )
 from openpyxl.cell.cell import Cell, MergedCell
+from openpyxl.cell.read_only import EmptyCell
 from openpyxl.drawing.image import Image
 import openpyxl
 from collections.abc import Generator
@@ -194,7 +195,8 @@ class XLSXReader:
         keep_links: bool = True,
         keep_rich_text: bool = False,
         read_locked: bool = False,
-    ) -> Generator[dict[str, Any], None, None]:
+        max_empty_row_streak: int = 10,
+    ) -> Generator[tuple[int, dict[str, Any]], None, None]:
         """
         Returns a generator that yields row-by-row read-only data from the spreadsheet located at *self.workbook_path*.
 
@@ -216,34 +218,41 @@ class XLSXReader:
                 If True, preserves any rich text formatting in cells. Defaults to False.
             read_locked:
                 If True, allows the reading of locked (currently opened) spreadsheets. Defaults to False.
+            max_empty_row_streak:
+                Maximum number of empty rows followed by one another before stopping iterating through the Generator.
+                max_empty_row_streak is a loop-safety measure implemented due to the way that some spreadsheets define the upper limit of the  number of rows in the document, thus max_empty_row_streak was created to prevend unnecessary iterations.
+                This number cannot be less than 1. Defaults to 10.
 
-        Returns: A generator of sheet rows, each key representing the row number (1-based) and each value a nested dict.
+
+        Returns: A generator of sheet row tuples, the first element representing the row number and the second, the row dictionary, each key representing the row number (1-based) and each value a nested dict.
         The nested dicts represents cells, with cell coordinates (or column numbers) as keys and cell values (or objects) as values.
 
         Examples:
-            >>>reader = XLSXReader(workbook_path="path/to/workbook.xlsx")
-            >>>sheet_data = reader.read_sheet("Sheet2", cell_values_only=True)
+            >>> reader = XLSXReader(workbook_path="path/to/workbook.xlsx")
+            >>> for row_number, row in reader.lazy_load_sheet("Sheet2", cell_values_only=True)
 
-            >>>print(sheet_name)
+            >>>     print(row_number, row)
 
-            # Outputs
+            >>> # Outputs
 
-            {
-                1: {"A1", "ID", "A2": "Title", "A3": "Genre"},
+            >>> # 1,
 
-                2: {"B1", 123, "B2": "Alien", "A3": "Science Fiction, Horror"},
+            >>> # {
+            >>> #     1: {"A1", "ID", "A2": "Title", "A3": "Genre"},
 
-                2: {"C1", 124, "C2": "Predator", "A3": "Science Fiction, Action"},
+            >>> #     2: {"B1", 123, "B2": "Alien", "A3": "Science Fiction, Horror"},
 
-                ...
-            }
+            >>> #     2: {"C1", 124, "C2": "Predator", "A3": "Science Fiction, Action"},
+
+            >>> #     ...
+            >>> # }
 
         """
         self._validade_file_type(["xlsx"])
 
         # Open workbook
         self.load_workbook(
-            True,
+            False,
             keep_vba,
             keep_formulae,
             keep_links,
@@ -253,21 +262,38 @@ class XLSXReader:
         # Get active (or specific, if provided) spreadsheet
         ws = self._get_worksheet(sheet_name)
 
+        empty_row_streak = 0  # Breaks loop upon hitting the max limit
+
         # Iterate through rows/cols to get cell values
-        for i, row in enumerate(ws.iter_rows()):
+        for row in ws.iter_rows():
+            if empty_row_streak >= max_empty_row_streak:
+                break
+
             r = {}
+            row_values = []
             for cell in row:
+                if cell.row is None:
+                    raise ValueError("Invalid or missing cell row number.")
+
+                row_number: int = cell.row
+                row_values.append(cell.value)
+
                 if isinstance(
-                    cell, openpyxl.cell.read_only.EmptyCell
+                    cell, EmptyCell
                 ):  # Ignore empty cells
                     continue
-                r[cell.coordinate if return_cell_coords else cell.column] = (
-                    cell.value if cell_values_only else cell
-                )
-            if len(r) <= 0:  # Ignore empty rows
-                continue
 
-            yield r
+                row_index = cell.coordinate if return_cell_coords else cell.column
+
+                r[row_index] = cell.value if cell_values_only else cell
+
+            # Ignore empty rows. Rows containing only None values will be considered as empty.
+            if len(r) <= 0 or all(value is None for value in row_values):
+                empty_row_streak += 1
+                continue
+            
+            empty_row_streak = 0 # Resets the steak upon yielding relevant data
+            yield (row_number, r)
 
         self.close_workbook()
 
