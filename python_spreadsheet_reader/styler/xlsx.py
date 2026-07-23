@@ -165,7 +165,20 @@ class XLSXCellStyler:
         )
         return self
 
-    def number_format(self, fmt: str) -> Self:
+    def number_format(self, fmt: str = "General") -> Self:
+        """Set the number format for the cell.
+
+        Args:
+            fmt:
+                The number format string to apply.
+                Can either be a build-in literal (like 'General') or a custom format string, e.g.:
+
+                ``"0.00"``, ``"#,##0"``, ``"#,##0.00"``, ``"0%"``, ``"0.00%"``,
+                ``"mm-dd-yy"``, "h:mm:ss AM/PM", ``"h:mm"``, ``"h:mm:ss"``, ``"m/d/yy h:mm"``.
+
+        Returns:
+            Self: The styler instance for method chaining.
+        """
         self.cell.number_format = fmt
         return self
 
