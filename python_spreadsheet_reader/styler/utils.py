@@ -35,3 +35,29 @@ class Underline(StrEnum):
     DOUBLE = "double"
     SINGLEACCOUNTING = "singleAccounting"
     DOUBLEACCOUNTING = "doubleAccounting"
+
+
+class Positions(StrEnum):
+    LEFT = "left"
+    RIGHT = "right"
+    TOP = "top"
+    BOTTOM = "bottom"
+
+    @classmethod
+    def all(cls) -> tuple[Positions, ...]:
+        return tuple([v for v in cls])
+
+class BorderStyles(StrEnum):
+    DASHDOT = 'dashDot'
+    DASHDOTDOT = 'dashDotDot'
+    DASHED = 'dashed'
+    DOTTED = 'dotted'
+    DOUBLE = 'double'
+    HAIR = 'hair'
+    MEDIUM = 'medium'
+    MEDIUMDASHDOT = 'mediumDashDot'
+    MEDIUMDASHDOTDOT = 'mediumDashDotDot'
+    MEDIUMDASHED = 'mediumDashed'
+    SLANTDASHDOT = 'slantDashDot'
+    THICK = 'thick'
+    THIN = 'thin'

@@ -1,7 +1,7 @@
 from openpyxl.styles import Font, PatternFill, Border, Side, Alignment, Protection, Color
 from openpyxl.cell.cell import Cell, MergedCell
-from typing import Self, Optional, Literal
-from .utils import VerticalAlignment, PatternFills, Underline
+from typing import Self, Optional
+from .utils import VerticalAlignment, PatternFills, Underline, Positions, BorderStyles
 
 
 type CellOrMegedCell = Cell | MergedCell
@@ -74,26 +74,31 @@ class XLSXCellStyler:
 
     def border(
         self,
-        sides=("left", "right", "top", "bottom"),
-        style="thin",
-        color="000000",
+        sides: tuple[Positions, ...] = Positions.all(),
+        style: BorderStyles = BorderStyles.THIN,
+        color: str = "#000000",
     ) -> Self:
+        """Apply a border style to the cell.
+
+        Args:
+            sides: A tuple of border positions to apply the style to (for example,
+                left, right, top, bottom). Defaults to all positions.
+            style: The border style to use. Defaults to :pydata:`BorderStyles.THIN`.
+            color: The border color as a hex string (for example, "#000000").
+                The leading hash is optional.
+
+        Returns:
+            Self: The styler instance for method chaining.
         """
-        Apply a border style to the given sides only, leaving other sides
-        (e.g. from a previous .border() call) untouched.
-        """
-        side = Side(border_style=style, color=color)
         current = self.cell.border
-        sides = set(sides)
-        self.cell.border = Border(
-            left=side if "left" in sides else current.left,
-            right=side if "right" in sides else current.right,
-            top=side if "top" in sides else current.top,
-            bottom=side if "bottom" in sides else current.bottom,
+        border = Border(
             diagonal=current.diagonal,
             diagonal_direction=current.diagonal_direction,
             outline=current.outline,
         )
+        for s in sides:
+            setattr(border, s.name.lower(), Side(border_style=style, color=color.replace("#", "")))
+        self.cell.border = border
         return self
 
     def alignment(

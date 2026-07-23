@@ -1,1 +1,8 @@
-from .xlsx import XLSXCellStyler, CellOrMegedCell, PatternFills, VerticalAlignment
+from .xlsx import (
+    XLSXCellStyler,
+    CellOrMegedCell,
+    PatternFills,
+    VerticalAlignment,
+    Positions,
+    BorderStyles
+)
