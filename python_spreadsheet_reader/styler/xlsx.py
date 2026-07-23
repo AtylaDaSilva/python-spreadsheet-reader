@@ -181,12 +181,3 @@ class XLSXCellStyler:
         """
         self.cell.number_format = fmt
         return self
-
-    def protection(self, locked=None, hidden=None) -> Self:
-        current = self.cell.protection
-        self.cell.protection = Protection(
-            locked=locked if locked is not None else current.locked,
-            hidden=hidden if hidden is not None else current.hidden,
-        )
-        return self
-
